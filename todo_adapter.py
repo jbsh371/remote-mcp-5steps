@@ -23,7 +23,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.routing import Route
 
 import hashlib, os, secrets, sys, time
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 from issue_token import issue_token, token_info
 
@@ -51,6 +51,8 @@ LOGIN_FORM = """<!doctype html><meta charset="utf-8">
 
 
 # ---- OAuth 제공자 ------------------------------------------
+
+
 
 class TodoOAuthProvider(OAuthProvider):
     # 보관함을 마련하고 옛 창구를 켭니다
@@ -90,7 +92,7 @@ class TodoOAuthProvider(OAuthProvider):
         return routes
 
     # 표준 라우트 둘을 새 방식용으로 바꿉니다. 나머지는 그대로 둡니다.
-    #   /token      - 새 방식 클라이언트는 서명한 쪽지로 자기를 증명합니다
+    #   /token      - 서명하는 클라이언트는 여기서 그 쪽지로 자기를 증명합니다
     #   메타데이터  - "우리는 새 방식도 받는다"고 알립니다
     def _enable_cimd_routes(self, routes: list[Route]) -> list[Route]:
         out = []
@@ -262,17 +264,22 @@ class TodoOAuthProvider(OAuthProvider):
         row = token_info(token)                 # 없거나 취소·만료면 None
         if row is None:
             return None
+        # None 도 통과시킵니다 - 4단계에서 손으로 발급한 토큰에는 쓸 서버가 안 적혀
+        # 있습니다. 로그인도 앱 등록도 안 거친 관리자 발급 토큰이라 수명도 없습니다.
         if row["resource"] not in (None, self._resource):
             return None                         # 다른 서버에 발급된 토큰
         _, client_id = self._issued.get(token, (None, "unknown"))
-        expires_at = row["expires_at"]
+        deadline = row["expires_at"]
+        if deadline is not None:
+            deadline = datetime.fromisoformat(deadline)
+            if deadline.tzinfo is None:       # token_info 와 같은 기준으로 읽습니다
+                deadline = deadline.replace(tzinfo=timezone.utc)
         return AccessToken(
             token=token,
             client_id=client_id,        # 어느 앱으로 들어왔나 (감사용)
             scopes=[],
             resource=row["resource"],   # 이 토큰을 쓸 수 있는 서버
-            expires_at=int(datetime.fromisoformat(expires_at).timestamp())
-                       if expires_at else None,
+            expires_at=int(deadline.timestamp()) if deadline else None,
             claims={"sub": row["user"]},  # 누구의 요청인가. 여기에 실어야 살아남습니다
         )
 
@@ -316,7 +323,7 @@ def call_service(method: str, path: str, user: str, **kwargs) -> httpx.Response:
         )
     except httpx.HTTPError as e:
         raise ValueError(f"서비스에 닿지 못했습니다: {e.__class__.__name__}")
-    if r.status_code >= 400:                  # 상태부터 봅니다. 401·500 이 JSON 일 리 없습니다
+    if r.status_code >= 400:                  # 오류 응답을 성공 응답인 양 읽지 않게 먼저 거릅니다
         raise ValueError(f"서비스가 {r.status_code} 로 거절했습니다")
     return r
 

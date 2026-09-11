@@ -7,6 +7,7 @@ fastmcp Client 로 in-memory 접속해 도구를 부릅니다.
 """
 
 import asyncio, hashlib, importlib, json, os, pathlib, re, shutil, sys, tempfile, time
+from datetime import datetime, timedelta, timezone
 
 WORK = pathlib.Path(tempfile.mkdtemp(prefix="todo-smoke-"))
 os.environ["DATA_DIR"] = str(WORK)
@@ -191,6 +192,9 @@ def main():
     return 1 if FAIL else 0
 
 
+_DROP = object()          # rewrite() 에서 "이 키를 아예 빼라"는 표시
+
+
 def boundary_stage():
     """토큰의 수명과 사용 대상, 로그인 거래 기한을 확인합니다.
 
@@ -228,6 +232,48 @@ def boundary_stage():
     check("이 서버의 토큰은 통과한다", got is not None)
     check("만료 시각이 토큰에 실린다", got is not None and got.expires_at is not None)
     check("다른 서버의 토큰은 거절한다", asyncio.run(auth.verify_token(other)) is None)
+
+    # 잘못된 입력과 옛 형식 - 거절하는 자리는 token_info() 하나입니다
+    try:
+        issue_token("kim", ttl=0)
+        check("ttl=0 은 발급을 거절한다", False, "예외가 안 났습니다")
+    except ValueError:
+        check("ttl=0 은 발급을 거절한다", True)
+
+    def rewrite(token, **fields):
+        """그 토큰 행을 손으로 고칩니다. 독자가 tokens.json 을 여는 것과 같습니다."""
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        rows = json.loads(store.read_text(encoding="utf-8"))
+        for row in rows:
+            if row["token_hash"] == digest:
+                for k, v in fields.items():
+                    if v is _DROP:
+                        row.pop(k, None)
+                    else:
+                        row[k] = v
+        store.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+
+    bad = issue_token("kim", ttl=3600, resource=auth._resource)
+    rewrite(bad, expires_at="2020-01-01")            # 시간대 없는 과거
+    check("시간대 없는 과거 시각은 만료로 거절한다", token_info(bad) is None)
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(tzinfo=None)
+    rewrite(bad, expires_at=future.isoformat())       # 시간대 없는 미래
+    row = token_info(bad)
+    check("시간대 없는 미래 시각은 UTC 로 보고 통과시킨다", row is not None)
+    check("제공자도 같은 기준으로 읽는다",
+          row is not None
+          and (asyncio.run(auth.verify_token(bad)).expires_at
+               == int(future.replace(tzinfo=timezone.utc).timestamp())))
+    rewrite(bad, expires_at=(datetime.now(timezone.utc) + timedelta(hours=1)).isoformat())
+    check("시간대 있는 미래 시각은 통과시킨다", token_info(bad) is not None)
+    rewrite(bad, expires_at="어제")                  # 읽을 수 없는 값
+    check("읽을 수 없는 만료 시각은 거절한다", token_info(bad) is None)
+    rewrite(bad, expires_at="")                      # 빈 값
+    check("빈 만료 시각은 거절한다", token_info(bad) is None)
+
+    old_row = issue_token("kim", ttl=3600, resource=auth._resource)
+    rewrite(old_row, resource=_DROP, expires_at=_DROP)
+    check("옛 형식 행은 거절한다", token_info(old_row) is None)
 
     # 로그인 거래 기한
     auth._pending["old"] = ("c", None, time.time() - todo_v5.PENDING_TTL - 1)

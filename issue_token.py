@@ -20,8 +20,11 @@ def issue_token(user: str, *, ttl: int | None = None, resource: str | None = Non
 
     ttl 은 수명(초)입니다. 안 주면 만료가 없습니다 - 관리자가 손으로 발급하고
     손으로 취소하는 4단계가 그렇습니다. 5단계의 로그인은 한 시간짜리를 냅니다.
+    주려면 양의 정수여야 합니다. 0 은 "수명 없음"이 아니라 잘못된 값입니다.
     resource 는 이 토큰을 쓸 수 있는 서버입니다. 안 주면 제한이 없습니다.
     """
+    if ttl is not None and ttl <= 0:
+        raise ValueError("ttl 은 양의 정수(초)입니다. 수명을 안 둘 거면 빼세요")
     token = f"tok-{user}-{secrets.token_urlsafe(24)}"
     now = datetime.now(timezone.utc)
 
@@ -30,7 +33,8 @@ def issue_token(user: str, *, ttl: int | None = None, resource: str | None = Non
         "token_hash": _hash(token),
         "user": user,
         "issued_at": now.isoformat(),
-        "expires_at": (now + timedelta(seconds=ttl)).isoformat() if ttl else None,
+        "expires_at": (now + timedelta(seconds=ttl)).isoformat()
+                      if ttl is not None else None,
         "resource": resource,
         "revoked": False,
     })
@@ -52,11 +56,20 @@ def token_info(token: str) -> dict | None:
     digest = _hash(token)
     now = datetime.now(timezone.utc)
     for row in json.loads(STORE.read_text(encoding="utf-8")):
-        if row["token_hash"] != digest or row["revoked"]:
+        if row.get("token_hash") != digest or row.get("revoked"):
             continue
-        expires_at = row.get("expires_at")
-        if expires_at and datetime.fromisoformat(expires_at) <= now:
-            return None                      # 수명이 다한 토큰
+        if "expires_at" not in row or "resource" not in row:
+            return None                      # 옛 형식 행 - 다시 발급받아야 합니다
+        expires_at = row["expires_at"]
+        if expires_at is not None:
+            try:
+                deadline = datetime.fromisoformat(expires_at)
+            except (TypeError, ValueError):
+                return None                  # 읽을 수 없는 시각은 거절합니다
+            if deadline.tzinfo is None:      # 시간대가 없으면 UTC 로 봅니다
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            if deadline <= now:
+                return None                  # 수명이 다한 토큰
         return row
     return None
 
