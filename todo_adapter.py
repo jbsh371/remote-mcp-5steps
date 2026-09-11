@@ -316,7 +316,7 @@ def call_service(method: str, path: str, user: str, **kwargs) -> httpx.Response:
         r = httpx.request(
             method, f"{SERVICE_INTERNAL_URL}{path}",
             headers={
-                "X-Service-Key": SERVICE_KEY,     # 서비스 간 비밀 (또는 mTLS)
+                "X-Service-Key": SERVICE_KEY,     # 서비스끼리만 아는 비밀키
                 "X-On-Behalf-Of": user,           # 누구를 대신하는가
             },
             timeout=5, **kwargs,
