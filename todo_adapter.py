@@ -241,7 +241,7 @@ class TodoOAuthProvider(OAuthProvider):
         refresh_token: RefreshToken, scopes: list[str],
     ) -> OAuthToken:
         user, _ = self._issued.get(refresh_token.token, (None, None))
-        self._refresh.pop(refresh_token.token, None)       # 회전
+        self._refresh.pop(refresh_token.token, None)       # 쓴 갱신 토큰은 버립니다
         token = issue_token(user, ttl=TOKEN_TTL, resource=self._resource)
         self._issued[token] = (user, client.client_id)
         new_refresh = secrets.token_urlsafe(32)
