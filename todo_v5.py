@@ -69,7 +69,7 @@ def _save(todos):
 
 
 class TodoOAuthProvider(OAuthProvider):
-    # 보관함을 마련하고 옛 창구를 켭니다
+    # 보관함을 마련하고 등록 창구를 켭니다
     def __init__(self, base_url: str):
         super().__init__(
             base_url=base_url,
@@ -156,7 +156,7 @@ class TodoOAuthProvider(OAuthProvider):
         if params.resource and str(params.resource).rstrip("/") != self._resource:
             raise AuthorizeError(
                 error="invalid_target",
-                error_description=f"이 서버의 토큰이 아닙니다: {params.resource}",
+                error_description=f"이 서버를 위한 인가 요청이 아닙니다: {params.resource}",
             )
         self._sweep_pending()
         txn = secrets.token_urlsafe(24)
