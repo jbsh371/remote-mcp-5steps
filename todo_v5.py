@@ -88,11 +88,11 @@ class TodoOAuthProvider(OAuthProvider):
         self._refresh: dict[str, RefreshToken] = {}
         self._issued: dict[str, tuple[str, str]] = {}   # 토큰 → (사용자, client_id)
 
-    # 손님이 누구인지 확인합니다 - FastMCP가 알아서 부릅니다
+    # 클라이언트가 누구인지 확인합니다 - FastMCP가 알아서 부릅니다
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         if self._cimd.is_cimd_client_id(client_id):        # 이름표가 주소 모양이면
             return await self._cimd.get_client(client_id)  #   그 주소의 문서를 읽어 확인
-        return self._clients.get(client_id)                # 아니면 신고해 둔 것을 찾습니다
+        return self._clients.get(client_id)                # 주소 모양이 아니면 등록해 둔 것을 찾습니다
 
     # 등록해 달라고 오면 적어 둡니다
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
@@ -106,7 +106,7 @@ class TodoOAuthProvider(OAuthProvider):
         return routes
 
     # 표준 라우트 둘을 새 방식용으로 바꿉니다. 나머지는 그대로 둡니다.
-    #   /token      - 서명하는 클라이언트는 여기서 그 쪽지로 자기를 증명합니다
+    #   /token      - 서명하는 클라이언트는 여기서 서명한 JWT로 자기를 증명합니다
     #   메타데이터  - "우리는 새 방식도 받는다"고 알립니다
     def _enable_cimd_routes(self, routes: list[Route]) -> list[Route]:
         out = []
@@ -182,7 +182,7 @@ class TodoOAuthProvider(OAuthProvider):
                 LOGIN_FORM.format(txn=txn, error="로그인 실패"), 401
             )
 
-        client_id, params, _ = self._pending.pop(txn)      # 티켓은 한 번만 씁니다
+        client_id, params, _ = self._pending.pop(txn)      # 임시 번호는 한 번만 씁니다
         code = AuthorizationCode(
             code=secrets.token_urlsafe(32),
             client_id=client_id,
