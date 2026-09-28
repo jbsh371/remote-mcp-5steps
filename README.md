@@ -94,6 +94,14 @@ pip install -r requirements.txt
 
 데이터 파일 경로도 하나 덧붙입니다. 1~3단계는 `todos.json` 의 경로를 스크립트 기준(`Path(__file__).parent`)으로 잡았습니다. stdio 서버의 작업 폴더는 클라이언트가 정하기 때문에, 상대 경로로 쓰면 엉뚱한 곳에 파일이 생기거나 권한 오류가 납니다. 4·5단계는 `DATA_DIR` 환경변수로 저장 폴더를 정하고, 없으면 실행한 작업 폴더를 씁니다.
 
+## 1단계 실습 3에서 붙여 넣는 줄
+
+책의 1단계 실습 3에서 `todo_v1.py`를 띄운 터미널에 통째로 붙여 넣는 줄입니다. 책에서는 쪽 폭 때문에 여러 줄로 꺾여 보이지만 실제로는 한 줄입니다. 아래 칸의 복사 버튼으로 복사해 붙이세요.
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add_todo","arguments":{"text":"책 반납하기"},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+```
+
 ## 버전
 
 `requirements.txt` 는 `fastmcp==4.0.3` 과, 그 아래에서 도는 기반 SDK `mcp==2.1.1` 을 함께 고정합니다. `fastmcp` 만 고정하면 딸려 오는 `mcp` 버전이 설치 시점에 따라 달라지기 때문입니다. 책이 이 버전을 기준으로 삼은 이유는 **2026년 7월 28일 MCP 개정에 대응하는 세대**이기 때문입니다. 그 이전 세대(3.4.x)에서도 이 코드는 실행됩니다. 다만 규격이 개정 이전이라, 책의 설명과 어긋나는 곳이 생깁니다.
