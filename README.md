@@ -4,7 +4,7 @@
 
 할 일 관리 서버 하나를 다섯 번 고쳐 갑니다. 내 PC에서만 도는 stdio 서버로 시작해서, 고객이 claude.ai에서 로그인해 쓰는 원격 MCP 서버까지 갑니다. 단계마다 서버 파일이 하나씩 들어 있습니다. 4·5단계 서버는 공통 파일 `issue_token.py` 를 같은 폴더에 두어야 실행됩니다.
 
-- **책**: [교보문고 전자책](https://ebook-product.kyobobook.co.kr/dig/epd/ebook/E000013636679) · [YES24 전자책](https://www.yes24.com/product/goods/197087831) · 교보문고 종이책(판매 준비 중)
+- **책**: [교보문고 전자책](https://ebook-product.kyobobook.co.kr/dig/epd/ebook/E000013636679) · [YES24 전자책](https://www.yes24.com/product/goods/197087831) · [교보문고 종이책](https://product.kyobobook.co.kr/detail/S000221567577)
 - **정오표**: [ERRATA.md](ERRATA.md)
 
 책 본문은 여기 없습니다. 이 저장소가 담는 것은 예제 코드뿐입니다.
